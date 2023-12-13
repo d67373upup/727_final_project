@@ -1,0 +1,305 @@
+---
+title: "Final Project 727 V2"
+author: "Qiyu Yang and Zeyu Lou"
+date: "2023-12-04"
+output: html_document
+number_sections: yes
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidytext)
+library(RedditExtractoR)
+library(dplyr)
+library(textdata)
+library(ggplot2)
+library(cowplot)
+library(syuzhet)
+```
+
+## Yearly data
+
+```{r}
+#Yearly data
+
+arp_posts_urls <- find_thread_urls(subreddit="politics", keywords="American Rescue Plan", sort_by="comments",period = "all")
+
+arp_posts_urls$date_utc <- as.Date(arp_posts_urls$date_utc)
+
+arp_posts_2021 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2021-03-11") & arp_posts_urls$date_utc <= as.Date("2021-12-31"), ]
+
+arp_posts_2022 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2022-01-01") & arp_posts_urls$date_utc <= as.Date("2022-12-31"), ]
+
+arp_posts_2023_to_now <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2023-01-01"), ]
+
+arp_posts_contents_2021 <- get_thread_content(arp_posts_2021$url[1:5])
+arp_posts_contents_2022 <- get_thread_content(arp_posts_2022$url[1:5])
+arp_posts_contents_2023 <- get_thread_content(arp_posts_2023_to_now$url[1:5])
+```
+
+```{r}
+comments_2021 <- arp_posts_contents_2021$comments
+comments_2022 <- arp_posts_contents_2022$comments
+comments_2023 <- arp_posts_contents_2023$comments
+print(comments_2021)
+print(comments_2022)
+print(comments_2023)
+```
+#2021
+```{r}
+tidy_comments_2021 <- comments_2021%>%
+   unnest_tokens(word, comment) %>%
+  anti_join(stop_words)
+
+sentiment_2021 <- tidy_comments_2021 %>%
+  inner_join(get_sentiments("nrc")) %>%
+  select(word, sentiment)
+
+table(sentiment_2021$sentiment)
+
+plot_2021 <- ggplot(sentiment_2021, aes(y = sentiment))+
+  geom_bar(aes(fill = sentiment))+
+  theme_minimal()+
+  labs(title = "Sentiments in ARP 2021")+
+  theme(legend.position = "none")
+```
+
+#2022
+```{r}
+tidy_comments_2022 <- comments_2022%>%
+   unnest_tokens(word, comment) %>%
+  anti_join(stop_words)
+
+sentiment_2022 <- tidy_comments_2022 %>%
+  inner_join(get_sentiments("nrc")) %>%
+  select(word, sentiment)
+
+table(sentiment_2022$sentiment)
+
+plot_2022 <- ggplot(sentiment_2022, aes(y = sentiment))+
+  geom_bar(aes(fill = sentiment))+
+  theme_minimal()+
+  labs(title = "Sentiments in ARP 2022")+
+  theme(legend.position = "none")
+```
+
+#2023
+```{r}
+tidy_comments_2023 <- comments_2023%>%
+   unnest_tokens(word, comment) %>%
+  anti_join(stop_words)
+
+sentiment_2023 <- tidy_comments_2023 %>%
+  inner_join(get_sentiments("nrc")) %>%
+  select(word, sentiment)
+
+table(sentiment_2023$sentiment)
+
+plot_2023 <- ggplot(sentiment_2023, aes(y = sentiment))+
+  geom_bar(aes(fill = sentiment))+
+  theme_minimal()+
+  labs(title = "Sentiments in ARP 2023")+
+  theme(legend.position = "none")
+```
+```{r}
+legend <- get_legend(plot_2021 + theme(legend.position = "bottom") +guides(fill = guide_legend(nrow = 4, byrow = TRUE)))
+
+combined_plot <- plot_grid(plot_2021, plot_2022, plot_2023, legend, ncol = 2, rel_heights = c(0.5, 0.5, 0.5, 0.1))
+combined_plot
+```
+
+```{r}
+sentiment_counts_2021 <- table(sentiment_2021$sentiment)
+sentiment_counts_2022 <- table(sentiment_2022$sentiment)
+sentiment_counts_2023 <- table(sentiment_2023$sentiment)
+
+
+sentiment_percent_2021 <- prop.table(sentiment_counts_2021) * 100
+sentiment_percent_2022 <- prop.table(sentiment_counts_2022) * 100
+sentiment_percent_2023 <- prop.table(sentiment_counts_2023) * 100
+
+
+comparison_df <- data.frame(
+  Sentiment = names(sentiment_percent_2021),
+  `2021` = as.numeric(sentiment_percent_2021),
+  `2022` = as.numeric(sentiment_percent_2022),
+  `2023` = as.numeric(sentiment_percent_2023)
+)
+print(comparison_df)
+
+comparison_df_long <- tidyr::pivot_longer(comparison_df, cols = -Sentiment, names_to = "Year", values_to = "Percentage")
+
+combined_plot_1 <- ggplot(comparison_df_long, aes(x = Year, y = Percentage, group = Sentiment, color = Sentiment)) +
+  geom_line() +
+  geom_point() +
+  theme_minimal() +
+  labs(title = "Sentiment Trends for American Rescue Plan", x = "Year", y = "Percentage (%)") +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))  
+combined_plot_1
+```
+
+## Quarterly data
+
+```{r}
+arp_posts_2021.2 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2021-03-11") & arp_posts_urls$date_utc <= as.Date("2021-06-11"), ]
+arp_posts_2021.3 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2021-06-12") & arp_posts_urls$date_utc <= as.Date("2021-09-11"), ]
+arp_posts_2021.4 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2021-09-12") & arp_posts_urls$date_utc <= as.Date("2021-12-31"), ]
+
+arp_posts_2022.1 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2022-01-01") & arp_posts_urls$date_utc <= as.Date("2022-03-31"), ]
+arp_posts_2022.2 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2022-04-01") & arp_posts_urls$date_utc <= as.Date("2022-06-30"), ]
+arp_posts_2022.3 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2022-07-01") & arp_posts_urls$date_utc <= as.Date("2022-09-30"), ]
+arp_posts_2022.4 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2022-10-01") & arp_posts_urls$date_utc <= as.Date("2022-12-31"), ]
+
+arp_posts_2023.1 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2023-01-01") & arp_posts_urls$date_utc <= as.Date("2023-03-31"), ]
+arp_posts_2023.2 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2023-04-01") & arp_posts_urls$date_utc <= as.Date("2023-06-30"), ]
+arp_posts_2023.3 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2023-07-01") & arp_posts_urls$date_utc <= as.Date("2023-09-30"), ]
+arp_posts_2023.4 <- arp_posts_urls[arp_posts_urls$date_utc >= as.Date("2023-10-01"), ]
+
+
+arp_posts_contents_2021_2 <- get_thread_content(arp_posts_2021.2$url[1])
+arp_posts_contents_2021_3 <- get_thread_content(arp_posts_2021.3$url[1])
+arp_posts_contents_2021_4 <- get_thread_content(arp_posts_2021.4$url[1])
+
+arp_posts_contents_2022_1 <- get_thread_content(arp_posts_2022.1$url[1])
+arp_posts_contents_2022_2 <- get_thread_content(arp_posts_2022.2$url[1])
+arp_posts_contents_2022_3 <- get_thread_content(arp_posts_2022.3$url[1])
+arp_posts_contents_2022_4 <- get_thread_content(arp_posts_2022.4$url[1])
+
+arp_posts_contents_2023_1 <- get_thread_content(arp_posts_2023.1$url[1])
+arp_posts_contents_2023_2 <- get_thread_content(arp_posts_2023.2$url[1])
+arp_posts_contents_2023_3 <- get_thread_content(arp_posts_2023.3$url[1])
+arp_posts_contents_2023_4 <- get_thread_content(arp_posts_2023.4$url[1])
+
+```
+
+```{r}
+comments_2021_2 <- arp_posts_contents_2021_2$comments
+comments_2021_3 <- arp_posts_contents_2021_3$comments
+comments_2021_4 <- arp_posts_contents_2021_4$comments
+
+comments_2022_1 <- arp_posts_contents_2022_1$comments
+comments_2022_2 <- arp_posts_contents_2022_2$comments
+comments_2022_3 <- arp_posts_contents_2022_3$comments
+comments_2022_4 <- arp_posts_contents_2022_4$comments
+
+comments_2023_1 <- arp_posts_contents_2023_1$comments
+comments_2023_2 <- arp_posts_contents_2023_2$comments
+comments_2023_3 <- arp_posts_contents_2023_3$comments
+```
+
+#2021
+
+```{r}
+get_average_sentiment <- function(comments) {
+  sentiments <- sapply(comments, function(comment) get_sentiment(comment, method = "syuzhet"))
+  mean(sentiments, na.rm = TRUE)
+}
+
+average_sentiment_2021_2 <- get_average_sentiment(comments_2021_2)
+average_sentiment_2021_3 <- get_average_sentiment(comments_2021_2)
+average_sentiment_2021_4 <- get_average_sentiment(comments_2021_2)
+
+```
+
+#2022
+
+```{r}
+average_sentiment_2022_1 <- get_average_sentiment(comments_2022_1)
+average_sentiment_2022_2 <- get_average_sentiment(comments_2022_2)
+average_sentiment_2022_3 <- get_average_sentiment(comments_2022_3)
+average_sentiment_2022_4 <- get_average_sentiment(comments_2022_4)
+
+
+```
+
+#2023
+
+```{r}
+average_sentiment_2023_1 <- get_average_sentiment(comments_2023_1)
+average_sentiment_2023_2 <- get_average_sentiment(comments_2023_2)
+average_sentiment_2023_3 <- get_average_sentiment(comments_2023_3)
+```
+
+```{r}
+
+convert_to_date <- function(period) {
+  year <- substr(period, 1, 4)
+  quarter <- substr(period, 6, 7)
+  start_month <- as.numeric(quarter) * 3 - 2
+  date_string <- paste0(year, "-", sprintf("%02d", start_month), "-01")
+  as.Date(date_string)
+}
+
+sentiment_timeline <- data.frame(
+  period = c("2021.2", "2021.3", "2021.4", "2022.1", "2022.2", "2022.3", "2022.4", "2023.1", "2023.2", "2023.3"),
+  average_sentiment = c(average_sentiment_2021_2, average_sentiment_2021_3, average_sentiment_2021_4, average_sentiment_2022_1, average_sentiment_2022_2, average_sentiment_2022_3, average_sentiment_2022_4, average_sentiment_2023_1, average_sentiment_2023_2, average_sentiment_2023_3)
+)
+
+sentiment_timeline$period_date <- as.Date(sapply(sentiment_timeline$period, convert_to_date))
+
+str(sentiment_timeline)
+
+graph_q1 <- ggplot(sentiment_timeline, aes(x = period_date, y = average_sentiment)) +
+  geom_line() +
+  geom_point() +
+  geom_smooth(method = "loess", se = FALSE, color = "blue") +
+  theme_minimal() +
+  labs(title = "Average Sentiment Score Over Time", x = "Time Period", y = "Average Sentiment Score") +
+  scale_x_date(date_breaks = "3 months", date_labels = "%Y-%m")
+graph_q1
+```
+
+```{r}
+UMCSENT <- data.frame(
+  period = c("2021.2", "2021.3", "2021.4", "2022.1", "2022.2", "2022.3", "2022.4", "2023.1", "2023.2", "2023.3"),
+  UMCSENT = c(85.5, 72.8, 70.6, 59.4, 50.0, 58.6, 59.8, 62, 64.2, 67.9) 
+)
+
+UMCSENT$period_date <- as.Date(sapply(UMCSENT$period, convert_to_date))
+
+combined_data <- merge(sentiment_timeline, UMCSENT, by = "period_date")
+
+graph_q2 <- ggplot() +
+  geom_line(data = combined_data, aes(x = period_date, y = average_sentiment, colour = "Sentiment"), size = 1) +
+  geom_line(data = combined_data, aes(x = period_date, y = UMCSENT, colour = "Inflation"), size = 1) +
+  scale_colour_manual("", 
+                      breaks = c("Sentiment", "UMCSENT"),
+                      values = c("Sentiment" = "blue", "UMCSENT" = "red")) +
+  theme_minimal() +
+  labs(title = "Average Sentiment Score and UMCSENT Over Time", x = "Time Period", y = "Average Sentiment Score / UMCSENT") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "UMCSENT"))
+
+graph_q2
+```
+
+```{r}
+correlation <- cor(combined_data$average_sentiment, combined_data$UMCSENT)
+correlation
+```
+
+```{r}
+fed_rate <- data.frame(
+  period = c("2021.2", "2021.3", "2021.4", "2022.1", "2022.2", "2022.3", "2022.4", "2023.1", "2023.2", "2023.3"),
+  Federal_Funds_Effective_Rate = c(0.08, 0.08, 0.08, 0.2, 1.21, 2.56, 4.1, 4.65, 5.08, 5.33) 
+)
+
+fed_rate$period_date <- as.Date(sapply(fed_rate$period, convert_to_date))
+
+combined_data <- merge(sentiment_timeline, fed_rate, by = "period_date")
+
+graph_q3 <- ggplot() +
+  geom_line(data = combined_data, aes(x = period_date, y = average_sentiment, colour = "Sentiment"), size = 1) +
+  geom_line(data = combined_data, aes(x = period_date, y = Federal_Funds_Effective_Rate, colour = "Federal_Funds_Effective_Rate"), size = 1) +
+  scale_colour_manual("", 
+                      breaks = c("Sentiment", "Inflation"),
+                      values = c("Sentiment" = "blue", "Inflation" = "red")) +
+  theme_minimal() +
+  labs(title = "Average Sentiment Score and Fed Rate Over Time", x = "Time Period", y = "Average Sentiment Score / Fed Rate") +
+  scale_y_continuous(sec.axis = sec_axis(~ ., name = "Fed Rate"))
+
+graph_q3
+```
